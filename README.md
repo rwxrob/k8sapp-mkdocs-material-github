@@ -1,10 +1,16 @@
 # MkDocs Kubernetes Deployment with CronJob
 
-1. Clean README GitHub repo with intuitive documentation
-1. K8S PVC to hold `git pull` updates from GitHub repo
-1. K8S `CronJob` (busybox) calling `git pull` at reasonable intervals
-1. K8S `Deployment` containing MkDocs-Material in `serve` mode pointing to PVC
-1. K8S Istio `VirtualServer` allowing access to web server from world
-
+* Clean README GitHub repo with intuitive documentation
+* Git clone/pull public repo automatically from K8S CronJob
+* Single YAML file configuration (`mkdocs.yaml`)
+* No need for any tokens or ssh keys
 * Material for MkDocs  
   <https://squidfunk.github.io/mkdocs-material/>
+
+## Start Kind Cluster
+
+```
+kind create cluster --config kind.yaml
+```
+
+Access via port 30000 from localhost for testing.

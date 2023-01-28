@@ -48,6 +48,17 @@ spec:
                 claimName: mkdocs-pvc
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: mkdocs
+  name: mkdocs-config
+data:
+  mkdocs.yml: |
+    docs_dir: /docs
+    site_name: Sample Team Docs Site
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,13 +75,14 @@ spec:
     metadata:
       labels:
         app: mkdocs-server
-      annotations:
-        configmap-version: v1
     spec:
       volumes:
         - name: mkdocs-data
           persistentVolumeClaim:
             claimName: mkdocs-pvc
+        - name: mkdocs-config
+          configMap:
+            name: mkdocs-config
       containers:
         - name: mkdocs-server
           image: squidfunk/mkdocs-material
@@ -78,17 +90,16 @@ spec:
           volumeMounts:
             - mountPath: /docs
               name: mkdocs-data
-            - mountPath: /mkdocs.yml
-              name mkdocs-config
+            - mountPath: /config
+              name: mkdocs-config
           command:
             - mkdocs
-          args:
             - serve
             - --dev-addr=0.0.0.0:8000
             - -f
-            - /mkdocs.yml
-      ports:
-        containerPort: 8000
+            - /config/mkdocs.yml
+          ports:
+            - containerPort: 8000
 
 ---
 apiVersion: v1
@@ -104,5 +115,5 @@ spec:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-      nodePort: 8000
-    
+      nodePort: 30000
+
