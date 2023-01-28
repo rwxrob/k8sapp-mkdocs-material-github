@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  namespace: mkdocs
+  name: mkdocs
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: mkdocs
+  name: mkdocs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce # change to Many after deployed to NFS storage class
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: mkdocs
+  name: mkdocs-cron
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: mkdocs-cron
+              image: alpine/git
+              command:
+                - /bin/sh
+              args:
+                - -c
+                - "if [ -d /docs/.git ]; then cd /docs; git pull; else git clone --single-branch https://github.com/rwxrob/sample-docs.git /docs; fi"
+              volumeMounts:
+                - mountPath: /docs
+                  name: mkdocs-data
+              imagePullPolicy: IfNotPresent
+          restartPolicy: Never
+          volumes:
+            - name: mkdocs-data
+              persistentVolumeClaim:
+                claimName: mkdocs-pvc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: mkdocs
+  name: mkdocs-server
+  labels:
+    app: mkdocs-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mkdocs-server
+  template:
+    metadata:
+      labels:
+        app: mkdocs-server
+      annotations:
+        configmap-version: v1
+    spec:
+      volumes:
+        - name: mkdocs-data
+          persistentVolumeClaim:
+            claimName: mkdocs-pvc
+      containers:
+        - name: mkdocs-server
+          image: squidfunk/mkdocs-material
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /docs
+              name: mkdocs-data
+            - mountPath: /mkdocs.yml
+              name mkdocs-config
+          command:
+            - mkdocs
+          args:
+            - serve
+            - --dev-addr=0.0.0.0:8000
+            - -f
+            - /mkdocs.yml
+      ports:
+        containerPort: 8000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: mkdocs
+  name: mkdocs-service
+spec:
+  type: NodePort
+  selector:
+    app: mkdocs-server
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 8000
+    
